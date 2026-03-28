@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<!-- AIC-RNTU Chatbot - Final Complete Version -->
+<link rel="stylesheet" href="[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css)">
+
+
+<style>
+:root {
+  --primary: #003087;
+  --accent: #FF6200;
+}
+
+
+#chat-widget {
+  position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+
+#chat-bubble {
+  width: 60px; height: 60px; background: linear-gradient(135deg, var(--accent), #ff6b35); color: white;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 4px 20px rgba(255, 98, 0, 0.4);
+  transition: all 0.3s ease;
+}
+
+
+#chat-bubble:hover {
+  transform: scale(1.1); box-shadow: 0 6px 25px rgba(255, 98, 0, 0.6);
+}
+
+
+#chat-window {
+  display: none; position: fixed; bottom: 90px; right: 20px;
+  width: 380px; height: 520px; background: linear-gradient(145deg, #ffffff, #f8f9fa);
+  border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  flex-direction: column; border: 1px solid rgba(0,0,0,0.1);
+  transform: translateY(20px) scale(0.95); opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+#chat-window.open {
+  transform: translateY(0) scale(1); opacity: 1;
+}
+
+
+#chat-header {
+  background: linear-gradient(135deg, var(--primary), #0056a3); color: white; padding: 15px;
+  display: flex; align-items: center; border-radius: 20px 20px 0 0;
+}
+
+
+#chat-body {
+  flex: 1; padding: 15px; overflow-y: auto; background: #f8f9fa;
+  scrollbar-width: thin; scrollbar-color: #ccc transparent;
+}
+
+
+#chat-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+
+#chat-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+#chat-body::-webkit-scrollbar-thumb {
+  background: #ccc; border-radius: 3px;
+}
+
+
+.message {
+  margin: 8px 0; padding: 12px 16px; border-radius: 18px;
+  max-width: 85%; position: relative; word-wrap: break-word;
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+
+@keyframes messageSlideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+.bot { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.user { background: linear-gradient(135deg, var(--accent), #ff6b35); color: white; margin-left: auto; box-shadow: 0 2px 8px rgba(255, 98, 0, 0.3); }
+
+
+.bot::before {
+  content: '🤖'; position: absolute; left: -35px; top: 12px; font-size: 16px;
+}
+
+
+.user::after {
+  content: '👤'; position: absolute; right: -35px; top: 12px; font-size: 16px;
+}
+
+
+#chat-input-area {
+  padding: 15px; border-top: 1px solid #eee; display: flex; background: white; border-radius: 0 0 20px 20px;
+}
+
+
+#chat-input {
+  flex: 1; padding: 12px 16px; border-radius: 25px; border: 2px solid #e0e0e0;
+  transition: border-color 0.3s ease;
+}
+
+
+#chat-input:focus {
+  outline: none; border-color: var(--accent);
+}
+
+
+.quick-replies {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+}
+
+
+.chip {
+  background: linear-gradient(135deg, #e0f0ff, #b3d9ff); padding: 6px 12px;
+  border-radius: 20px; cursor: pointer; font-size: 11px; transition: all 0.2s ease;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+
+.chip:hover {
+  transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+
+#chat-footer {
+  padding: 10px; text-align: center; font-size: 10px; color: #666; border-top: 1px solid #eee; background: #f8f9fa;
+  border-radius: 0 0 20px 20px;
+}
+
+
+.typing-indicator {
+  display: none; padding: 12px 16px; margin: 8px 0;
+  background: white; border-radius: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  font-style: italic; color: #666;
+}
+
+
+.dots::after {
+  content: '';
+  animation: typingDots 1.5s infinite;
+}
+
+
+@keyframes typingDots {
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80%, 100% { content: '...'; }
+}
+</style>
+
+
+<div id="chat-widget">
+  <div id="chat-bubble" onclick="toggleChat()">
+    <img src="https://via.placeholder.com/40x40/FF6200/FFFFFF?text=AIC" alt="Chatbot Logo" style="border-radius: 50%; width: 40px; height: 40px;">
+  </div>
+
+
+  <div id="chat-window">
+    <div id="chat-header">
+      <strong>AIC-RNTU Assistant</strong>
+      <button onclick="toggleChat()" style="margin-left:auto;background:none;border:none;color:white;font-size:20px;">×</button>
+    </div>
+
+
+    <div id="chat-body"></div>
+
+
+    <div id="chat-input-area">
+      <input id="chat-input" placeholder="Ask something..." onkeypress="if(event.key==='Enter') sendMessage()">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+
+
+    <div id="chat-footer">
+      Powered by TEROSICA SYSTEMS
+    </div>
+  </div>
+</div>
+
+
+<script>
+const chatBody = document.getElementById('chat-body');
+
+
+function addMessage(html, isUser=false) {
+  const msg = document.createElement('div');
+  msg.className = 'message ' + (isUser ? 'user' : 'bot');
+  const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  msg.innerHTML = html + `<div style="font-size: 9px; color: #999; margin-top: 4px;">${timestamp}</div>`;
+  chatBody.appendChild(msg);
+  // keep existing scroll position; do not auto-scroll
+}
+
+
+function showTypingIndicator() {
+  const indicator = document.createElement('div');
+  indicator.className = 'typing-indicator';
+  indicator.id = 'typing-indicator';
+  indicator.innerHTML = '<span>Typing</span><span class="dots"></span>';
+  indicator.style.display = 'block';
+  chatBody.appendChild(indicator);
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+
+function hideTypingIndicator() {
+  const indicator = document.getElementById('typing-indicator');
+  if (indicator) indicator.remove();
+}
+
+
+const menu = {
+  "About": ["About AIC-RNTU", "Who We Are", "Services We Offer", "Our Team", "Mentors", "Startups Associated", "Partners"],
+  "Programs": ["Growth", "Investment Bridge", "IR(Investment Ready) Program", "Cohort 2022", "Cohort 2023", "Ideate Cohort 2023", "Ideate Cohort 2025"],
+  "Facilities": ["Shared Resources", "Fab Lab", "Our Offerings"],
+  "Funding": ["SISFS", "Nidhi-SSP", "MSME Hackathon 5.0", "IDEX", "Genesis", "Funded Startups", "Investment Partners"]
+};
+
+
+function showButtons() {
+  renderMainMenu();
+}
+
+
+function renderMainMenu() {
+  const existing = document.getElementById('quick-replies');
+  if (existing) existing.remove();
+
+
+  const buttonWrapper = document.createElement('div');
+  buttonWrapper.className = 'quick-replies';
+  buttonWrapper.id = 'quick-replies';
+
+
+  Object.keys(menu).forEach(item => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.textContent = item;
+    chip.onclick = () => handleButtonClick(item, null);
+    buttonWrapper.appendChild(chip);
+  });
+
+
+  chatBody.appendChild(buttonWrapper);
+  // keep existing scroll position; do not auto-scroll
+}
+
+
+function renderSubMenu(category) {
+  const existing = document.getElementById('quick-replies');
+  if (existing) existing.remove();
+
+
+  const buttonWrapper = document.createElement('div');
+  buttonWrapper.className = 'quick-replies';
+  buttonWrapper.id = 'quick-replies';
+
+
+  menu[category].forEach(item => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.textContent = item;
+    chip.onclick = () => handleButtonClick(item, category);
+    buttonWrapper.appendChild(chip);
+  });
+
+
+  const mainChip = document.createElement('div');
+  mainChip.className = 'chip';
+  mainChip.textContent = 'Main Menu';
+  mainChip.onclick = () => {
+    addMessage('Main Menu', true);
+    renderMainMenu();
+  };
+  buttonWrapper.appendChild(mainChip);
+
+
+  chatBody.appendChild(buttonWrapper);
+  // keep existing scroll position; do not auto-scroll
+}
+
+
+function handleButtonClick(option, parentCategory) {
+  addMessage(option, true);
+
+
+  if (parentCategory) {
+    showTypingIndicator();
+    setTimeout(() => {
+      hideTypingIndicator();
+      addMessage(getBotResponse(option));
+      renderSubMenu(parentCategory);
+    }, 800);
+    return;
+  }
+
+
+  if (menu[option]) {
+    showTypingIndicator();
+    setTimeout(() => {
+      hideTypingIndicator();
+      addMessage('Select an option from ' + option + '.');
+      renderSubMenu(option);
+    }, 500);
+    return;
+  }
+
+
+  showTypingIndicator();
+  setTimeout(() => {
+    hideTypingIndicator();
+    addMessage(getBotResponse(option));
+    renderMainMenu();
+  }, 900);
+}
+
+
+function getBotResponse(q) {
+  q = q.toLowerCase();
+
+
+  if (q.includes('who we are')) {
+    return `🏢 Who We Are – AIC-RNTU Foundation<br><br>A leading incubation centre in Madhya Pradesh, focused on nurturing innovation and building a strong startup ecosystem.<br><br>🎯 Our Vision<br><br>To create a thriving, innovation-driven environment that empowers entrepreneurs to build scalable and impactful ventures.<br><br>🚀 What We Offer<br>💰 Funding support & investor connections<br>🧠 Mentorship & expert guidance<br>🤝 Networking, events & collaborations<br>📚 Workshops, training & skill development<br>🔬 Access to modern labs & infrastructure<br>🏢 Dedicated co-working spaces<br>🧩 End-to-end startup handholding<br><br>🌐 Our Approach<br><br>We bring together startups, investors, mentors, and industry experts to enable:<br>• Knowledge sharing<br>• Collaboration & networking<br>• Innovation-driven growth<br><br>📈 Impact<br><br>Driving economic growth, job creation, and technological advancement by empowering startups and strengthening the national entrepreneurial ecosystem.<br><br>💡 Mission: To continuously empower entrepreneurs and transform ideas into successful, scalable ventures.<br><br><a href="https://aicrntu.com/whoweare" target="_blank">Click Here To Know Us Better</a>`;
+  }
+
+
+  if (q.includes('about aic') || q.includes('who we are')) {
+    return `AIC-RNTU Foundation is a leading incubation center in Madhya Pradesh, focused on innovation, startup growth, and ecosystem development.<br>We connect founders, mentors, investors, and institutions to create a powerful platform for collaboration and success.<br><br><strong>Why Choose AIC-RNTU? 🚀</strong><br><br>🏢 State-of-the-Art Infrastructure – Modern labs & workspace<br>🤝 Strong Network – Access to mentors, investors & industry leaders<br>💰 Funding Opportunities – Multiple schemes & investor connections<br><br><strong>Our Impact 📊</strong><br><br>🚀 176 Startups Incubated<br>🧠 85+ Mentors<br>🎯 338+ Events & Trainings<br>💸 43 Funded Startups<br><br><strong>Programs 🧩</strong><br><br>💡 Ideate (10 Weeks)<br>Pre-incubation program to turn ideas into MVPs<br><br>🚀 Discover (13 Weeks)<br>Hybrid incubation program for early-stage startups with mentorship & funding support<br><br>📈 Growth (12 Weeks)<br>Accelerator program focused on scaling startups rapidly<br><br>🌉 Investment Bridge<br>Platform for revenue-stage startups to pitch and raise funding<br><br><strong>Success Stories 💬</strong><br><br>Startups consistently highlight:<br><br>💰 Timely funding support<br>🧠 Expert mentorship<br>🤝 Valuable investor connections<br>📈 Real business growth<br><br><strong>Events & Learning 🎤</strong><br><br>Regular sessions on:<br><br>Fundraising 💰<br>Pitching & Storytelling 🎯<br>Legal & Compliance ⚖️<br>Partners & Ecosystem 🌐<br><br>Collaborations with leading platforms like:<br><br>Startup India 🇮🇳<br>NITI Aayog<br>iDEX<br>NASSCOM<br>HDFC Bank<br><br>📲 Connect With Us:<br>Facebook | Twitter | LinkedIn | YouTube<br><br>💡 Empowering startups with the right resources, network, and opportunities to succeed.`;
+  }
+
+
+  if (q.includes('services we offer')) {
+    return `Services We Offer 🚀<br><br>End-to-end support to help startups build, launch, and scale successfully.<br><br>🏢 Co-Working Space – Fully-equipped office spaces for productivity<br>💰 Funding Support – Access to seed funding & investor network<br>🧠 Mentorship – Guidance from domain experts & industry leaders<br>🤝 Networking & Events – Connect with founders, investors & experts<br>🔬 Access to Labs – Fab Lab, IoT Lab, Rapid Prototyping & more<br>🛡️ IPR Support – Protect your ideas with patents & trademarks<br>📚 Trainings & Workshops – Learn business, tech & growth strategies<br>👥 HR & Intern Support – Build and scale your team<br>💻 Technical Assistance – Domain, hosting & tech guidance<br>📄 Company Registration – Support for startup incorporation<br>⚖️ Legal & Accounting – Compliance & financial management<br><br>💡 Everything you need to launch, operate, and scale your startup—under one roof.<br><br>Click <a href="https://aicrntu.com/services">Here</a> To Know More About The Services We Offer`;
+  }
+
+
+  if (q.includes('facilities')) {
+    return `Facilities 🏢<br><br>Co-Working Space ☕<br>A vibrant, fully-equipped workspace designed for productivity and collaboration.<br>Options include: Hot Desk, Dedicated Desk, and Private Cabins<br><br><strong>Key Amenities:</strong><br>⚡ High-speed Wi-Fi<br>📚 Library access<br>🛋️ Hangout areas<br>🧑‍💼 Conference & meeting rooms<br>🔌 Power backup (UPS)<br>🖨️ Printers, scanners & essentials<br>🔬 I4 Lab (Innovation, Integration, Incubation & Implementation)<br>Rapid Prototyping Lab 🛠️<br>Build and test product models quickly with advanced tools—enabling cost-effective and efficient development.<br><br>Fabrication Lab (Fab Lab) ⚙️<br>Modern digital fabrication facility with industrial-grade tools for hardware and product-based startups.<br><br>IoT Lab 🌐<br>Advanced lab for IoT development, testing, and deployment, ideal for startups working on smart and connected technologies.<br><br>💡 Everything you need to build, test, and scale your startup—all in one place.<br><br>Click <a href="https://www.aicrntu.com/facilities">Here</a> to Know More`;
+  }
+
+
+  if (q.includes('shared resources')) {
+    return `Shared Resources 🔬<br><br>AIC-RNTU provides access to advanced research centers and infrastructure to support innovation, R&D, and startup growth across multiple domains.<br><br><strong>Renewable Energy ⚡🌱</strong><br>Focus on clean energy research & innovation<br>Skill development programs on energy conservation & sustainability<br><br><strong>IoT & Emerging Technologies 🌐</strong><br>Advanced IoT lab for real-world applications<br>Supports domains like Smart City, Healthcare, Agriculture, Manufacturing<br>Integration with Cloud & modern tech ecosystems<br><br><strong>Advanced Material Research 🧪</strong><br>Modern lab for material synthesis & testing<br>Research across life sciences, physical sciences, environment & agriculture<br><br><strong>Agriculture Research Complex (ARC) 🌾</strong><br>8-acre research facility<br>Focus on agri-innovation, training, and field-based learning<br><br><strong>Arts, Literature & Culture 🎭📚</strong><br>Interdisciplinary research, workshops, publications & digital content creation<br><br><strong>Earth & Space Sciences 🌍🚀</strong><br>Research on natural disasters (earthquakes, floods, droughts, etc.)<br>Focus on prediction, early warning & disaster management<br><br><strong>Environmental Research 🌿</strong><br>Work on water, health, energy & food systems<br>Promotes sustainable development & real-world impact<br><br>💡 Access powerful resources to research, innovate, and scale across industries.<br><br>Click <a href="https://www.aicrntu.com/facilities">Here</a> to Know More`;
+  }
+
+
+  if (q.includes('our offerings')) {
+    return `Startup Support Services 🚀<br><br>Empowering startups with expert guidance, resources, and execution support to build and scale successfully.<br><br>✨ Core Services<br><br>🎤 Pitch Deck – Create compelling investor-ready presentations<br>📊 Business Plan & Financials – Projections, valuation & strategy<br>🔍 Market Research – Insights on market, competition & trends<br>🤝 Investor Connect – Access to investors & funding support<br>🏛️ DPIIT & MSME Registration – Govt. recognition & benefits<br>📑 Scheme Consulting – Guidance on govt. schemes & applications<br>🛠️ Prototyping (FAB Lab) – Turn ideas into real products<br>📈 DPR (Detailed Project Report) – Complete project planning<br><br>🧠 Additional Support<br><br>Business model & financial guidance<br>Mentorship & strategic consulting<br>Pitch deck improvement<br>Prototyping assistance<br><br>📞 Need Help?<br><br>Submit your details or Call Now to get expert guidance tailored to your startup 💡<br><br>❓ FAQs<br><br>💸 Funding Support: 40+ startups funded via schemes & CSR<br>🤝 Investor Network: 40+ investment firms connected<br>⚖️ Legal/CA Help: Available via partner firms<br>📄 Agreement: Required during onboarding<br>💰 Service Charges: Vary by service (contact for details)<br><br>💡 Your partner in turning ideas into scalable, fundable businesses.<br><br>Click <a href="https://aicrntu.com/our-offerings">Here</a> To Know More About The Help We Offer`;
+  }
+
+
+  if (q.includes('mentors')) {
+    return `Mentors 🤝<br><br>AIC-RNTU is backed by a strong network of industry leaders, investors, academicians, and startup experts—providing strategic guidance, mentorship, and growth support.<br><br><strong>Key Mentors Include:</strong><br>💼 Prasanna Lohar – Head Innovation & Digital Architect, DCB Bank<br>🎓 Dr. Radha Iyer – Professor, K.J. Somaiya Institute, Mumbai<br>💰 Anil Joshi – Managing Partner, Unicorn India Ventures<br>🌱 Prof. Satyajit Majumdar – TISS, Mumbai (Social Entrepreneurship)<br>🚀 Abhijeet Kumar – Co-Founder, Ah! Ventures<br>🏢 Vinayak Nath – Managing Partner, Venture Catalysts<br>📈 Vikrant Varshney – SucSEED Angel Network<br>💡 Kruti Raiyani – Lead Angels (Investments)<br>🌍 Dr. F. J. Manjón – Professor, Spain<br>🧠 Dr. Shweta Singh – CEO, WIEF<br><br><strong>Expertise Areas:</strong><br>📊 Startups & Fundraising<br>💻 Technology & Product Development<br>📣 Marketing & Branding<br>⚖️ Legal & Compliance<br>🌱 Agriculture & Sustainability<br>🤖 Emerging Tech & Innovation<br><br>💡 Get access to top-tier mentorship to validate ideas, scale faster, and succeed in the startup ecosystem.<br><br>Click <a href="https://www.aicrntu.com/mentors">Here</a> to Know More About Our Mentors`;
+  }
+
+
+  if (q.includes('team')) {
+    return `Our Team 👥<br><br>👨‍💼 Ronald Fernandez – Chief Executive Officer (CEO)<br>📊 Amit Shukla – Accountant / Administrator<br>🧑‍💼 Krati Jain – Manager<br>👨‍💻 Shubham Nema – Assistant Manager<br>🚀 Mansi Bijwani – Incubation Officer<br>🤝 Parmeet Kaur – Assistant Incubation Officer<br>🏢 Ashmita Singh – Office Administrator<br><br>💡 A dedicated team committed to supporting startups at every stage of their journey.<br><br>Click Here To <a href="https://www.aicrntu.com/team">Know</a> More About Our Team`;
+  }
+
+
+  if (q.includes('startups') && !q.includes('funded')) {
+    return `Incubated Startups 🚀<br><br>AIC-RNTU has incubated a diverse portfolio of startups across industries—driving innovation and real-world impact.<br><br><strong>🌟 Key Startups</strong><br><br>🩺 FemiSafe, MedySeva, Momcare, Saarka Tech – Healthcare & HealthTech<br>🤖 VOCBOT.AI, Opsight AI, GenZDealZ.AI, Ingnious AI – AI/ML & SaaS<br>🚁 Berry Avionics, Volar Alta, Aerosys Defence – Drone & Aerospace<br>⚡ BluPower, Amptra Motors, WHIZZ EV – Energy & Electric Vehicles<br>🌾 Agriwa Organics, Farm Prosperity, Genflow AI – Agritech<br>🎓 Languify, EaseExam, AmigosHub – EdTech<br>👗 The Tee Point, Wanderlooms, Timeless Apparels – Fashion & Apparel<br>📦 Sttago, White Wular – E-commerce & Retail<br>🚚 Incilo Logistics, Carrus Mobility – Logistics & Mobility<br><br><strong>📊 Domains Covered</strong><br><br>AI/ML & SaaS 💻<br>Healthcare & Biotech 🧬<br>Agritech 🌱<br>FinTech 💰<br>EdTech 🎓<br>EV & Mobility ⚡<br>Cybersecurity 🔐<br>Media & Entertainment 🎬<br>Consumer Products 🛍️<br><br><strong>🧪 Pre-Incubated Startups</strong><br><br>Early-stage innovations across:<br><br>HealthTech 🩺<br>EdTech 🎓<br>CleanTech 🌱<br>Wearables ⌚<br>E-commerce 🛒<br><br>💡 AIC-RNTU supports startups from idea to scale, across multiple high-growth sectors—building a strong and future-ready startup ecosystem.<br><br>Click <a href="https://www.aicrntu.com/startup_associated">Here</a> to Know More About Our Startups`;
+  }
+
+
+  if (q.includes('partner')) {
+    return `Become a Partner 🤝<br><br>Join AIC-RNTU’s growing ecosystem and collaborate with startups, innovators, and industry leaders 🚀<br><br>📝 Partner Application Details<br><br>👤 Basic Information<br><br>Name*<br>Email Address*<br>Contact Number*<br>City, Address, State*<br><br>🌐 Online Presence<br><br>Company Website URL*<br>LinkedIn Profile<br>Facebook Profile<br><br>🎯 Select Role<br><br>Mentor<br>Corporate Partner<br>Investment Partner<br>Academic Partner<br><br>📄 *About Your Company (250 words)<br><br>🌐 Our Ecosystem Includes<br><br>🏛️ Government & Initiatives: Startup India, AIM, MSME<br>☁️ Tech Platforms: AWS, Google Cloud, IBM, Zoho<br>💰 Investors & Financial Partners: DCB Bank, Yukon Capital<br>⚖️ Legal & Compliance: Vakilsearch, Zentrum Law<br>📈 Growth & Tools: Canva, Zendesk, MSG91<br><br>✅ Click Submit Now to become a partner and contribute to startup innovation & growth 💡<br><br>Click <a href="https://aicrntu.com/partner_form">Here</a> To Become Our Partner.`;
+  }
+
+
+  if (q.includes('apply')) {
+    return `<a href="https://aicrntu.com/apply">Apply</a> for Incubation 🚀<br><br><strong>Fill in the details below:</strong><br><br>👤 Basic Information<br><br>Name of Founder*<br>Startup / Idea Name*<br>Email Address*<br>Contact Number*<br>City*<br>📊 Startup Details<br><br>Stage of Startup*: Ideate / Discover / Growth<br>Category*: SC / ST / OBC / General<br>Sector* (multiple allowed):<br>Agriculture, AI/ML, FinTech, Blockchain, Healthcare, SaaS, Robotics, EdTech, Transportation, Drones, and more<br>🌐 Additional Info<br><br>Demo / Website Link (if any)<br>Startup Description* (max 250 words)<br>📂 Upload Pitch Deck (Max 10MB)<br>Must include:<br><br>Executive Summary<br>Problem & Solution<br>Market Overview<br>Company Overview (if registered)<br>Offerings<br>Growth Strategy<br>Team<br>Financials<br>📣 Source<br><br>How did you hear about us?*<br>✅ Click Submit Now to apply and kickstart your startup journey with AIC-RNTU 💡`;
+  }
+
+
+  if (q.includes('contact')) {
+    return `Contact Us 📞<br><br>📍 Address:<br>AIC-RNTU Foundation (Supported by NITI Aayog)<br>RNTU Campus, Mendua, Post: Bhojpur<br>Near Bangrasiya Chouraha, Bhopal–Chiklod Road<br>Raisen, Madhya Pradesh – 464993<br><br>📞 Phone: +91 755 270 0485<br>📧 Email: aic@rntu.ac.in<br><br>📝 Quick Connect:<br>Fill out the contact form and hit Submit Now to reach our team instantly 🚀<br>AIC-RNTU | Bhopal: Contact Us for Collaboration and Support`;
+  }
+
+
+  if (q.includes('fab lab')) {
+    return `🛠️ Facilities Available<br><br>🚁 Drone Development & Training<br><br>Prototyping for Quadcopters, Hexacopters & Agri-drones<br>Hands-on training for design, assembly & testing<br>Support for industrial drone applications<br><br>✂️ CNC Laser Cutting<br><br>High-precision cutting & engraving<br>Materials: Wood, Acrylic, Soft materials<br><br>🖨️ 3D Printing<br><br>Rapid prototyping of product ideas<br>Materials: PLA, ABS, TPU, Resin, PP<br><br>⚙️ CNC Routing (3-Axis)<br><br>Ideal for molds & product components<br>Materials: Acrylic, Aluminum, MDF, Foam<br><br>🔌 PCB & Desktop CNC<br><br>Create functional PCBs (drilling & engraving)<br>Materials: Wax, ABS, PC boards<br><br>🔬 Electronics & Testing<br><br>ESD workstations<br>Oscilloscopes (100MHz), Function Generators<br>IoT support (Arduino, Raspberry Pi)<br><br>💻 Design & Simulation Tools<br><br>MATLAB<br>SolidWorks<br>PTC Creo<br><br>💡 A complete ecosystem to design, prototype, test, and launch hardware & drone innovations.<br><br>Click <a href="https://aicrntu.com/flab">Here</a> To Know More About Our Fab Lab`;
+  }
+
+
+  if (q.includes('sisfs')) {
+    return `SISFS – Startup India Seed Fund Scheme 💰<br><br>The Startup India Seed Fund Scheme (SISFS) by DPIIT provides financial support to startups for early-stage growth 🚀<br><br>🎯 What It Supports<br><br>Proof of Concept<br>Prototype Development<br>Product Trials<br>Market Entry & Commercialization<br><br>🏢 AIC-RNTU’s Role<br>AIC-RNTU is a selected incubator to implement SISFS and disburse funds to eligible startups.<br><br>🧩 Selection Process<br><br>📋 Internal Committee Review<br>🧠 SME Evaluation<br>🎤 Final Pitch before ISMC (Incubator Seed Management Committee)<br><br>✔️ Startups are selected based on pre-defined evaluation criteria<br><br>🔗 How to Apply<br>Apply via the official portal and choose AIC-RNTU as your preferred incubator:<br>👉 https://seedfund.startupindia.gov.in<br><br>💡 A great opportunity to secure early-stage funding and accelerate your startup journey.<br><br>Click <a href="https://aicrntu.com/SISFS">Here</a> To Know More About SISFS`;
+  }
+
+
+  if (q.includes('nidhi')) {
+    return `NIDHI – Seed Support Program (NIDHI-SSP) 💰🚀<br><br>An initiative by the Department of Science & Technology (DST) to provide early-stage funding for innovative startups.<br><br>🎯 Program Purpose<br><br>Support innovative ideas & technologies<br>Bridge gap between development → commercialization<br>Help startups become investment-ready<br><br>🏢 AIC-RNTU’s Role<br>AIC-RNTU partners with DST to disburse seed funding and support incubated startups in scaling their innovations.<br><br>✅ Eligibility<br><br>DPIIT-registered Indian startup<br>Clear USP & customer validation<br>Minimum 51% Indian ownership<br>Not a subsidiary of foreign/MNC companies<br>Preference: No prior govt. funding<br><br>💡 Areas of Support<br><br>💻 Tech & Product Development – R&D, prototyping<br>📈 Market Entry & Scaling – marketing, expansion<br>⚖️ Mentorship & IPR – legal, patents, expert guidance<br>⭐ Additional support as recommended<br><br>🌟 Funded Startups (Examples)<br><br>🧠 Curomates – Mental health platform<br>🌍 GarudAlytics – Geospatial intelligence<br>🌐 INSTAWEB (websites.co.in) – No-code website builder<br>🤖 Languify – AI interview & communication platform<br>🎙️ VOCBOT.AI – AI voicebot SaaS<br>🩺 Momcare (Newbees) – Maternal healthcare<br>⚡ BluPower – Decentralized energy solutions<br>🏭 Opsight AI – Industrial AIoT platform<br>🚚 Incilo Logistics – Smart city logistics<br><br>💡 A strong opportunity to secure seed funding, validate your innovation, and prepare for scaling.<br><br>Click <a href="https://aicrntu.com/Nidhi_SSP">Here</a> To Know More About Nidhi-SSP`;
+  }
+
+
+  if (q.includes('funded')) {
+    return `🚀 Funded Startups (AIC RNTU)<br><br>🤖 AI / SaaS<br><br>VOCBOT.AI – Multilingual AI contact center<br>MISFITS – Voice-enabled AI chatbot<br>Languify – AI communication training<br>DexKor CRM – AI-powered CRM<br>Liznr Labs – AI meeting assistant<br>Logicsyner – Text-to-video AI<br><br>💻 Tech / IT / Platforms<br><br>Instaweb Labs – No-code website builder<br>Testpan – Infrastructure booking platform<br>InciLo – Smart logistics management<br>ZYGNOS – IT & software solutions<br>Kutumba – Personal finance aggregator<br>Genzdealz / FYDO / LYFD – Local deals platform<br>The Curio Store – Online collectibles auctions<br><br>🏥 Health / MedTech<br><br>Newbees (Momcare) – Women health AI app<br>Curomates – Mental health platform<br>OsteoQure – Health & IoT solutions<br>Medyseva – Rural telemedicine<br>CancerX – Oncology decision support<br>Goodlives – Mental wellness AI<br><br>🌱 Climate / Sustainability<br><br>BluPower – Micro-hydro energy<br>VOPTIMAISE – Climate AI optimization<br>Buy By Scrap – Recycling platform<br>WHIZZ EV – EV logistics-as-a-service<br><br>🏭 Industry / Manufacturing<br><br>Opsight AI – Manufacturing analytics<br>S2R2 – Smart factory monitoring<br>Parmanoo Data Labs – Mobility analytics<br><br>🛡️ Defence / Aerospace<br><br>Nomad Defence – Licensed defence manufacturing<br>Aerosys – UAV & aerospace systems<br>Frayit – Cybersecurity for gaming<br><br>📚 EdTech / Training<br><br>SKIM – Education innovation platform<br>Holosiksha – Futuristic learning solutions<br>Saarka Tech – Automation testing tools<br><br>🧠 Social / Mental / Community<br><br>FlipTalk – Discussion platform<br>PodPitara – On-demand radio<br>QRStaff – Attendance & payroll<br><br>👩‍💼 Business / Finance / Legal<br><br>RTiwala – Legaltech platform<br>Ark (Bright Hustle) – School management system<br>Gadirepair – Car service & roadside assistance<br><br>👗 Lifestyle / E-commerce<br><br>Alemeno – Healthy eating (gamified)<br>Timeless Apparels – Sustainable fashion<br>Kaulini (Antarvastra) – Hemp-based clothing<br>FemiSafe – Feminine hygiene products<br><br>🌾 Agriculture / Rural<br><br>Genflow AI – Dairy telemedicine<br>AHB Suraksha – Dairy solutions<br><br>📡 Geospatial / Data<br><br>Garudalytics – Geospatial intelligence<br><br>🚚 Mobility / Logistics<br><br>WHIZZ EV – EV logistics solutions<br>InciLo – Smart logistics platform<br><br>💡 AIC RNTU supports a strong ecosystem of AI, healthtech, defence, sustainability, and deep-tech startups through incubation, funding, and mentorship.<br><br>Click <a href="https://aicrntu.com/funded_startups">Here</a> To Know More About The Startups We've Funded`;
+  }
+
+
+  if (q.includes('inv')) {
+    return `Investment Partners 🤝💰<br><br>AIC-RNTU connects startups with a strong network of leading VCs, angel networks, and investment firms to unlock funding opportunities.<br><br>🚀 Key Investment Partners<br><br>💼 Beehive Capital<br>🌍 Unitus Ventures<br>📈 SucSEED Ventures<br>🤝 Ah! Ventures<br>🦄 Unicorn India Ventures<br>🚀 Venture Catalysts<br>💳 Moksha Finance<br>💯 100X.VC<br>🏗️ Venture Garage<br>📊 Syndicate Venture Partners<br>🌱 Omnivore VC<br>🧵 Silverneedle Ventures<br>💧 Fluid Ventures<br>🌆 Hyderabad Angels<br>🏙️ Mumbai Angels<br>💡 IP Ventures<br>🏢 MountTech Growth Fund<br>🌄 ValleyNXT Ventures<br><br>💡 Strong investor network = Higher chances of funding, strategic partnerships, and faster growth for startups.<br><br>Click <a href="https://aicrntu.com/invpartners">Here</a> To Know More About Our Investment Partners`;
+  }
+
+
+  if (q.includes('msme')) {
+    return `MSME Idea Hackathon 5.0 🇮🇳💡 (Applications Closed)<br><br>A national-level innovation challenge by the Ministry of MSME, with RNTU & AIC-RNTU as Host Incubator.<br><br>🎯 Who Can Apply<br><br>👤 Individual Innovators<br>🎓 Student Teams<br>🚀 Startups & MSMEs<br><br>💰 Benefits<br><br>Grant up to ₹15 Lakhs for idea development<br>🧠 Mentorship & incubation support<br>🔬 Access to labs & co-working space<br>🤝 Networking with experts, investors & policymakers<br>🏆 Recognition from Ministry of MSME<br><br>🧩 Key Themes<br><br>🌱 Low-carbon & sustainable technologies<br>🛡️ Cybersecurity, UAVs & defense tech<br>⚙️ Industry 4.0 & 5.0 for MSMEs<br>🌍 Solutions for coastal & hilly regions<br>📦 Smart & resilient supply chains<br><br>📝 How It Works<br><br>Register on MSME portal<br>Select Madhya Pradesh & RNTU (Host Institute)<br>Submit your idea<br>🎤 Shortlisted teams pitch to expert jury<br><br>📅 Deadline: 31 July 2025 (Now Closed)<br>📧 Contact: aic@rntu.ac.in<br><br>💡 A powerful platform to turn innovative ideas into funded solutions with national recognition.<br><br>Click <a href="https://aicrntu.com/MSME_Idea_Hackathon_5.0.php">Here</a> To Know More About MSME Hackathon 5.0`;
+  }
+
+
+  if (q.includes('idex')) {
+    return `iDEX Initiative 🛡️🚀 (Defence Innovation Program)<br><br>The IDEX (Innovations for Defence Excellence) initiative by the Ministry of Defence aims to drive self-reliance in India’s defence sector by supporting startups, MSMEs, and innovators.<br><br>🎯 Objective<br><br>Foster defence innovation & R&D<br>Build a strong ecosystem with startups, academia & industry<br>Develop cutting-edge defence technologies<br><br>💰 Funding & Support<br><br>Up to ₹1.5 Crores under DISC (Defence India Startup Challenge)<br>Up to ₹10 Crores under iDEX Prime<br>Funding via grants, equity, or debt (milestone-based)<br><br>Additional Support:<br><br>🧠 Mentorship & accelerator programs<br>🏭 Access to defence testing facilities<br>🔬 Prototyping & tech development support<br><br>✅ Who Can Apply<br><br>🚀 DPIIT-recognized Startups<br>🏢 MSMEs (as per MSME Act)<br>👤 Individual Innovators / Researchers<br><br>🛠️ Eligible Use of Funds<br><br>R&D & product development<br>Prototyping & pilot implementation<br>Market assessment<br><br>🤝 AIC-RNTU Support<br><br>🔬 Access to labs & prototyping facilities<br>🧠 Application guidance & mentorship<br>💰 Investor connects for matching contribution<br>🌐 Networking & exposure opportunities<br><br>📝 How to Apply<br>🔗 https://idex.gov.in/<br><br>Choose relevant challenge (DISC / Prime / etc.)<br>Submit application with pitch deck & documents<br><br>📅 Opportunities<br><br>🎓 Knowledge Series (Defence, Cybersecurity, Funding)<br>🎤 Virtual Demo Day for Defence Startups<br><br>💡 Ideal for innovators aiming to build defence technologies and scale with government-backed funding & support.<br><br>Click <a href="https://aicrntu.com/idex">Here</a> To Learn More About IDEX`;
+  }
+
+
+  if (q.includes('ideate cohort 2023')) {
+    return `Ideate Program 🚀 (Pre-Incubation | 10 Weeks)<br><br>Designed for idea-stage startups, this program helps founders turn concepts into MVPs (Minimum Viable Products).<br><br>🎯 Program Focus<br><br>Convert ideas into viable business models<br>Build the right team & strategy<br>Understand market dynamics & entrepreneurship fundamentals<br><br>👩‍💼 Eligibility (Women-Focused)<br><br>Women entrepreneurs with innovative, tech-driven ideas<br>Startups in ideation stage (no MVP required)<br>Founders from sectors like Tech, E-commerce, EdTech, Health, etc.<br>Commitment of 3–4 hours/week<br><br>✨ Key Benefits<br><br>🧠 Mentorship from industry experts<br>🏢 Access to co-working space<br>🔬 Modern labs & infrastructure<br>☁️ Soft infra credits (e.g., AWS, Zoho) up to $450K<br>🤝 Founder-to-founder learning<br>🌐 Strong network access<br><br>Click <a href="https://www.aicrntu.com/ideate_cohort2023">Here</a> To Know More About Ideate Cohort 2023`;
+  }
+
+
+  if (q.includes('ideate cohort 2025')) {
+    return `Ideate Cohort 2025 – SHEvolution 👩‍🚀 (Applications Closed)<br><br>A 10-week pre-incubation program designed to help women entrepreneurs turn ideas into impactful startups (MVP stage) 🚀<br><br>🎯 Program Focus<br><br>Build sustainable business models<br>Convert ideas into MVPs<br>Learn market, startup & growth fundamentals<br><br>✨ Key Benefits<br><br>🧠 Mentorship from founders & industry leaders<br>🛠️ MVP development support<br>⚖️ Legal, IPR & company registration guidance (at actual cost)<br>👥 HR & intern support<br>📚 Workshops on marketing, finance & pitching<br>💰 Investor connects & access to govt. funding<br>🎤 Demo Day exposure<br><br>🎯 Objectives<br><br>Empower women-led innovation<br>Provide resources, mentorship & funding pathways<br>Enable idea → MVP transformation<br>Build strong networks & growth opportunities<br><br>📈 Outcomes<br><br>🚀 Develop MVP in ~10 weeks<br>🎓 Learn from top mentors & founders<br>💰 Pitch to investors at Demo Day<br>🌐 Expand network & brand visibility<br><br>👩‍💼 Who Can Apply<br><br>Women with tech-driven, scalable ideas<br>Ideation-stage founders (no MVP required)<br>From sectors like Tech, E-commerce, EdTech, Health, etc.<br>Able to commit 3–4 hrs/week<br><br>📅 Key Dates (2025)<br><br>13 May – Applications Open<br>20 June – Last Date<br>25 June – Shortlisting (Round 1)<br>30 June – Shortlisting (Round 2)<br>4 July – Cohort Kickoff<br><br>📚 Program Flow (Highlights)<br><br>Idea Validation & Business Model<br>Marketing, Financials & Tech Basics<br>AI Tools & Legal Setup<br>Pitching, Funding & Demo Day<br><br>❓ FAQs<br><br>💸 Program Fee: Free (services like IPR/registration at actual cost)<br>🏢 Startup Required? No, can apply at idea stage<br>👤 Solo Founder? Yes, allowed<br>🎓 Certification? Yes, upon completion<br><br>💡 A complete pathway to build, validate, and launch your startup idea with expert support.<br><br>Click <a href="https://www.aicrntu.com/ideate_cohort2025">Here</a> To Know More Abour Ideate Cohort 2025`;
+  }
+
+
+  if (q.includes('cohort 2022')) {
+    return `Discover Program 🚀 (Incubation | 13 Weeks)<br><br>A hybrid incubation program designed for early-stage startups to achieve market entry and raise Pre-seed/Seed funding.<br><br>📌 Program Structure<br><br>🏢 3 Days Physical Program<br>💻 8 Weeks Virtual Sessions & Workshops<br>🎯 3 Weeks 1:1 Mentorship (sector-specific experts)<br>💰 Dedicated week for financials & investment readiness<br>🎤 Demo Day with Angel Investors, VCs & Seed Funds<br><br>✨ Key Benefits<br><br>💸 Funding opportunities up to ₹50 Lakhs<br>🧠 Dedicated mentorship & handholding<br>🌐 Market access & industry connections<br>📚 Capacity-building workshops<br>🤝 Strong networking ecosystem<br>🎤 Pitch to investors across India<br><br>🎯 Focus Areas<br><br>Business strategy & market entry<br>Financial modeling (Term Sheet, SHA, deal structure)<br>Investor readiness & fundraising<br><br>✅ Eligibility<br><br>Registered startup<br>MVP completed<br>Early traction achieved<br>Looking for Pre-seed / Seed funding<br><br>💡 A complete program to scale your startup, enter the market, and secure funding with expert support.<br><br>Click <a href="https://www.aicrntu.com/cohort2022">Here</a> To Know More About Cohort 2022`;
+  }
+
+
+  if (q.includes('cohort 2023')) {
+    return `Discover Cohort 🚀 (Incubation | 13 Weeks)<br><br>A hybrid incubation program for early-stage startups to achieve market entry and raise Pre-seed/Seed funding.<br><br>📌 Program Structure<br><br>🏢 3 Days Physical Bootcamp<br>💻 8 Weeks Workshops & Strategy Sessions<br>🎯 3 Weeks 1:1 Mentorship (domain experts)<br>💰 Financial readiness: Term Sheet, SHA, Deal Structuring<br>🎤 Demo Day with Angels, VCs & Seed Investors<br><br>✨ Key Benefits<br><br>💸 Funding opportunities up to ₹50 Lakhs<br>🧠 Dedicated mentorship & handholding<br>🌐 Market access & product visibility<br>📚 Entrepreneurial training & workshops<br>🤝 Strong networking ecosystem<br>🎤 Pitch to investors across India<br><br>🎯 Eligibility<br><br>Registered startup<br>MVP completed<br>Early traction<br>Seeking Pre-seed / Seed funding<br><br>📅 Key Timeline (2023)<br><br>📢 Call for Applications – 9 Feb<br>✅ Shortlisting & Pitching Rounds<br>🚀 Cohort Launch – 29–30 April & 1 May<br><br>💬 What Founders Say<br><br>🚀 Strong incubation & acceleration support<br>🤝 Valuable network & mentorship<br>📈 Practical learning & real startup exposure<br><br>💡 A powerful program to scale, connect, and raise funding with the right ecosystem support.<br><br>Click <a href="https://www.aicrntu.com/cohort2023">Here</a> To Know More About Cohort 2023`;
+  }
+
+
+  if (q.includes('growth')) {
+    return `Growth Program 🚀 (Accelerator | 12 Weeks)<br><br>A 12-week accelerator designed to help startups achieve rapid scaling and structured growth.<br><br>🎯 Program Focus<br><br>Accelerate business growth & market expansion<br>Implement proven frameworks & strategies<br>Strengthen execution, operations & scalability<br><br>✨ What You Get<br><br>🧠 Mentorship from experts & industry leaders<br>💰 Access to investors & funding opportunities<br>🔬 Access to labs & infrastructure<br>🏢 Co-working & conference facilities<br>📚 Trainings, workshops & events<br>🤝 Networking & partnership opportunities<br>👥 Intern & HR support<br>⚖️ Legal & accounting assistance<br>💻 Technical support (domain, hosting, etc.)<br>🛡️ Intellectual Property (IPR) support<br><br>💡 Ideal for startups ready to scale fast, raise funds, and expand efficiently.<br><br>Click <a href="https://www.aicrntu.com/growth">Here</a> To Know More About How We Help Startups Grow`;
+  }
+
+
+  if (q.includes('investment bridge')) {
+    return `💼 Investment Bridge – AIC RNTU<br><br>A strategic platform connecting innovative startups with angel investors, HNIs, and VCs to accelerate funding and growth.<br><br>🚀 Key Highlights<br>🎯 Sector-specific pitch days for curated startups<br>💰 Access to active investor network (Angels, HNIs, VCs)<br>📈 Focus on revenue-generating startups<br>🌐 Platform to showcase innovation & raise initial funding<br>✅ Eligibility<br>🏢 Private Limited Company<br>📜 DPIIT Registered Startup<br>📊 Revenue-generating startup<br>🤝 Ecosystem<br>Investment Partners<br>Ecosystem Partners<br>Previous Editions across sectors (including D2C)<br><br>💡 A high-impact initiative to bridge startups with capital and scale opportunities.<br><br><a href="https://aicrntu.com/investment_bridge">Click Here To Know More About Investment Bridge</a>`;
+  }
+
+
+  if (q.includes('ir') || q.includes('investment ready')) {
+    return `Investment Ready Program (IRP) 💰🚀 (10-Week Accelerator)<br><br>A focused accelerator for revenue-generating startups to become investment-ready and raise capital.<br><br>🎯 Program Focus<br><br>Build strong investment propositions<br>Get 1:1 expert mentoring<br>Prepare for effective fundraising & investor pitching<br><br>✨ Key Benefits<br><br>💸 Funding opportunities up to ₹50 Lakhs<br>🧠 Personalized 1:1 mentorship<br>📄 Investment document support (Pitch Deck, Terms, etc.)<br>🎨 Professional pitch deck design<br>🤝 Access to investors & HNIs network<br><br>✅ Eligibility<br><br>Private Limited company with DPIIT registration<br>Company age < 2 years (as of June 2024)<br>Annual turnover > ₹20 Lakhs<br>🌐 Open to all sectors<br><br>💡 Ideal for startups ready to raise funds, scale operations, and attract investors confidently.<br><br>Click <a href="https://aicrntu.com/IR_program">Here</a> To Know More About Our IR Program`;
+  }
+
+
+  return `Please select a topic below 👇`;
+}
+
+
+function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  addMessage(text, true);
+  input.value = '';
+  showTypingIndicator();
+  setTimeout(() => {
+    hideTypingIndicator();
+    addMessage(getBotResponse(text));
+    showButtons();
+  }, 1500);
+}
+
+
+function quickReply(text) {
+  if (menu[text]) {
+    handleButtonClick(text, null);
+    return;
+  }
+
+
+  // find parent category if subitem
+  const parent = Object.keys(menu).find(key => menu[key].includes(text));
+
+
+  if (parent) {
+    handleButtonClick(text, parent);
+    return;
+  }
+
+
+  addMessage(text, true);
+  showTypingIndicator();
+  setTimeout(() => {
+    hideTypingIndicator();
+    addMessage(getBotResponse(text));
+    showButtons();
+  }, 1200);
+}
+
+
+function toggleChat() {
+  const win = document.getElementById('chat-window');
+  if (win.style.display === 'flex') {
+    win.classList.remove('open');
+    setTimeout(() => win.style.display = 'none', 300);
+  } else {
+    win.style.display = 'flex';
+    setTimeout(() => win.classList.add('open'), 10);
+  }
+  if (chatBody.innerHTML === '') {
+    addMessage("👋 Welcome to AIC-RNTU! Choose an option below 👇");
+    showButtons();
+  }
+}
+</script>
+
+
+
